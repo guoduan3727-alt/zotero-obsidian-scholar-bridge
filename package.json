@@ -1,0 +1,20 @@
+{
+  "name": "zotero-obsidian-scholar-bridge",
+  "version": "0.8.0",
+  "description": "AI-assisted Zotero reading, Obsidian vocabulary, sentence analysis, and evidence-based paper Q&A.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/guoduan3727-alt/zotero-obsidian-scholar-bridge.git"
+  },
+  "private": true,
+  "scripts": {
+    "test": "node tests/core.test.cjs && node tests/preferences.test.cjs",
+    "security": "powershell -NoProfile -ExecutionPolicy Bypass -File tests/security-scan.ps1",
+    "build": "powershell -NoProfile -ExecutionPolicy Bypass -File build.ps1",
+    "validate": "powershell -NoProfile -ExecutionPolicy Bypass -File tests/validate-package.ps1"
+  },
+  "devDependencies": {
+    "katex": "^0.16.22"
+  }
+}

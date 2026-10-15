@@ -1,0 +1,118 @@
+<vbox xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul"
+      xmlns:html="http://www.w3.org/1999/xhtml"
+      id="obsidian-scholar-bridge-preferences"
+      onload="Zotero.ObsidianScholarBridgePrefs.init(window)">
+  <html:style>
+    #obsidian-scholar-bridge-preferences .bridge-grid {
+      display: grid;
+      grid-template-columns: 170px minmax(260px, 1fr) auto;
+      gap: 9px 12px;
+      align-items: center;
+      margin: 8px 0 16px;
+    }
+    #obsidian-scholar-bridge-preferences input,
+    #obsidian-scholar-bridge-preferences select,
+    #obsidian-scholar-bridge-preferences menulist {
+      box-sizing: border-box;
+      width: 100%;
+      min-height: 30px;
+    }
+    #obsidian-scholar-bridge-preferences .bridge-help {
+      opacity: .78;
+      line-height: 1.45;
+      margin: 4px 0 12px;
+    }
+    #obsidian-scholar-bridge-preferences .bridge-status {
+      min-height: 22px;
+      margin-top: 8px;
+    }
+  </html:style>
+
+  <groupbox>
+    <label><html:h2>大模型接口</html:h2></label>
+    <html:p class="bridge-help">
+      OpenAI 使用 Responses API；DeepSeek 和通用服务使用 OpenAI-compatible Chat Completions。
+      API Key 保存在 Zotero 使用的系统密码存储中，不写入 prefs.js。
+    </html:p>
+    <html:div class="bridge-grid">
+      <html:label for="bridge-provider">服务商</html:label>
+      <menulist id="bridge-provider" native="true">
+        <menupopup>
+          <menuitem value="openai" label="OpenAI" />
+          <menuitem value="deepseek" label="DeepSeek（Flash / Pro 1M）" />
+          <menuitem value="generic" label="通用 OpenAI-compatible / 本地模型" />
+        </menupopup>
+      </menulist>
+      <button id="bridge-provider-preset" label="应用推荐配置" />
+
+      <html:label for="bridge-base-url">API Base URL</html:label>
+      <html:input id="bridge-base-url" type="url" spellcheck="false" />
+      <html:span />
+
+      <html:label for="bridge-model">快速模型</html:label>
+      <html:input id="bridge-model" type="text" spellcheck="false" />
+      <html:span />
+
+      <html:label for="bridge-deep-model">深度模型</html:label>
+      <html:input id="bridge-deep-model" type="text" spellcheck="false" />
+      <html:span />
+
+      <html:label for="bridge-api-key">API Key</html:label>
+      <html:input id="bridge-api-key" type="password" autocomplete="off" />
+      <button id="bridge-test" label="保存并测试" />
+    </html:div>
+  </groupbox>
+
+  <groupbox>
+    <label><html:h2>Obsidian 输出</html:h2></label>
+    <html:div class="bridge-grid">
+      <html:label for="bridge-vault-path">Vault 根目录</html:label>
+      <html:input id="bridge-vault-path" type="text" spellcheck="false" />
+      <button id="bridge-browse" label="选择目录…" />
+
+      <html:label for="bridge-vocabulary-folder">词典子目录</html:label>
+      <html:input id="bridge-vocabulary-folder" type="text" spellcheck="false" />
+      <html:span />
+
+      <html:label for="bridge-chat-folder">阅读会话子目录</html:label>
+      <html:input id="bridge-chat-folder" type="text" spellcheck="false" />
+      <html:span />
+
+      <html:label for="bridge-answer-language">默认回答语言</html:label>
+      <menulist id="bridge-answer-language" native="true">
+        <menupopup>
+          <menuitem value="zh-CN" label="简体中文" />
+          <menuitem value="en" label="English" />
+          <menuitem value="fr" label="Français" />
+        </menupopup>
+      </menulist>
+      <html:span />
+
+      <html:label for="bridge-reading-mode">默认阅读模式</html:label>
+      <menulist id="bridge-reading-mode" native="true">
+        <menupopup>
+          <menuitem value="quick" label="快速" />
+          <menuitem value="deep" label="深度（推荐）" />
+          <menuitem value="full" label="全文" />
+        </menupopup>
+      </menulist>
+      <html:span />
+
+      <html:label for="bridge-paper-model-quality">默认论文模型</html:label>
+      <menulist id="bridge-paper-model-quality" native="true">
+        <menupopup>
+          <menuitem value="fast" label="快速模型（DeepSeek Flash）" />
+          <menuitem value="deep" label="深度模型（DeepSeek Pro）" />
+        </menupopup>
+      </menulist>
+      <html:span />
+    </html:div>
+    <html:p class="bridge-help">
+      词典采用“一词一文件”，重复遇到同一词时匹配已有义项、补充新语境，必要时增加新义项。
+      词典生成和增量合并固定使用快速模型，不能切换为深度模型。
+      Obsidian 会自动检测外部 Markdown 文件变化，无需额外 Obsidian 插件。
+    </html:p>
+  </groupbox>
+
+  <html:div id="bridge-status" class="bridge-status" aria-live="polite" />
+</vbox>

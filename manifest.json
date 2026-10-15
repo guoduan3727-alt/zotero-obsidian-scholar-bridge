@@ -1,0 +1,19 @@
+{
+  "manifest_version": 2,
+  "name": "Obsidian Scholar Bridge",
+  "version": "0.8.0",
+  "description": "Build an AI-assisted academic vocabulary and paper Q&A workflow from Zotero to Obsidian.",
+  "author": "Obsidian Scholar Bridge contributors",
+  "icons": {
+    "48": "chrome/content/icons/icon-48.svg",
+    "96": "chrome/content/icons/icon-96.svg"
+  },
+  "applications": {
+    "zotero": {
+      "id": "obsidian-scholar-bridge@local",
+      "update_url": "https://raw.githubusercontent.com/guoduan3727-alt/zotero-obsidian-scholar-bridge/main/updates.json",
+      "strict_min_version": "9.0",
+      "strict_max_version": "10.*"
+    }
+  }
+}
