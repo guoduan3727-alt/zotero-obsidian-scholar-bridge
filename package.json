@@ -1,6 +1,6 @@
 {
   "name": "zotero-obsidian-scholar-bridge",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "description": "AI-assisted Zotero reading, Obsidian vocabulary, sentence analysis, and evidence-based paper Q&A.",
   "license": "MIT",
   "repository": {

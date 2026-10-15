@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "Obsidian Scholar Bridge",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "description": "Build an AI-assisted academic vocabulary and paper Q&A workflow from Zotero to Obsidian.",
   "author": "Obsidian Scholar Bridge contributors",
   "icons": {

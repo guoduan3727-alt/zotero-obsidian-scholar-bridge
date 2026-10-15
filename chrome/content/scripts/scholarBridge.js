@@ -2315,6 +2315,7 @@ var ObsidianScholarBridge = (() => {
 
     const dictionaryView = createHTMLElement(doc, "div");
     dictionaryView.setAttribute("role", "tabpanel");
+    addStyle(dictionaryView, "display:flex;flex-direction:column;gap:8px;min-height:0");
     const chatView = createHTMLElement(doc, "div");
     chatView.setAttribute("role", "tabpanel");
     addStyle(chatView, "display:flex;flex-direction:column;gap:8px");
@@ -2334,7 +2335,7 @@ var ObsidianScholarBridge = (() => {
     addStyle(dictionaryModelNote, "font-size:.86em;opacity:.68;margin-bottom:7px");
     const dictionaryContent = createHTMLElement(doc, "div");
     addStyle(dictionaryContent, [
-      "max-height:min(72vh,680px)",
+      "max-height:min(62vh,560px)",
       "overflow-y:auto",
       "overflow-x:hidden",
       "overscroll-behavior:contain",
@@ -2342,6 +2343,16 @@ var ObsidianScholarBridge = (() => {
       "scrollbar-gutter:stable"
     ].join(";"));
     dictionaryPanel.append(dictionaryTitle, dictionaryModelNote, dictionaryContent);
+    const dictionaryStatus = createHTMLElement(doc, "div");
+    addStyle(dictionaryStatus, [
+      "padding:7px 9px",
+      "border:1px solid color-mix(in srgb,var(--sb-accent,#2563a8) 20%,var(--fill-quinary,#ccc))",
+      "border-radius:7px",
+      "background:var(--sb-accent-softer,var(--fill-quinary,#eee))",
+      "font-size:.88em",
+      "line-height:1.4"
+    ].join(";"));
+    dictionaryStatus.textContent = "词典状态：尚未生成预览。";
 
     const chatTitle = createHTMLElement(doc, "div");
     chatTitle.textContent = "论文问答";
@@ -2462,6 +2473,7 @@ var ObsidianScholarBridge = (() => {
     const memoryStatus = createHTMLElement(doc, "div");
     addStyle(memoryStatus, [
       "padding:7px 8px",
+      "border:1px solid var(--fill-quinary,#ccc)",
       "border-radius:7px",
       "background:var(--fill-quinary,#eee)",
       "font-size:.88em",
@@ -2503,15 +2515,28 @@ var ObsidianScholarBridge = (() => {
     ].join(";"));
     const actions = createHTMLElement(doc, "div");
     addStyle(actions, "display:flex;gap:7px;flex-wrap:wrap");
-    const askButton = createButton(doc, "提问", true);
-    const memoryButton = createButton(doc, "构建/更新全文记忆");
+    const askButton = createButton(doc, "提交问题", true);
+    const memoryButton = createButton(doc, "首次构建全文记忆（消耗 Token）");
     const saveButton = createButton(doc, "保存会话到 Obsidian");
-    const clearButton = createButton(doc, "清空");
-    const status = createHTMLElement(doc, "div");
-    addStyle(status, "min-height:18px;font-size:.9em;opacity:.75");
+    const clearButton = createButton(doc, "清空未发布草稿");
+    askButton.title = "按当前阅读模式和论文模型提交问题；回答会自动保存为隐藏草稿";
+    memoryButton.title = "首次构建会阅读全文；已有记忆时重新构建会再次消耗 Token";
+    saveButton.title = "首次保存会创建 Markdown；再次保存会更新同一个会话文件";
+    clearButton.title = "已发布会话会保留并新建空白会话；未发布草稿将被清空";
+    const chatStatus = createHTMLElement(doc, "div");
+    addStyle(chatStatus, [
+      "min-height:18px",
+      "padding:7px 9px",
+      "border:1px solid color-mix(in srgb,var(--sb-accent,#2563a8) 20%,var(--fill-quinary,#ccc))",
+      "border-radius:7px",
+      "background:var(--sb-accent-softer,var(--fill-quinary,#eee))",
+      "font-size:.9em",
+      "line-height:1.4"
+    ].join(";"));
+    chatStatus.textContent = "论文问答状态：正在初始化…";
 
     actions.append(askButton, memoryButton, saveButton, clearButton);
-    dictionaryView.append(dictionaryPanel);
+    dictionaryView.append(dictionaryPanel, dictionaryStatus);
     chatView.append(
       chatHeadingRow,
       sessionPanel,
@@ -2522,22 +2547,27 @@ var ObsidianScholarBridge = (() => {
       memoryStatus,
       modelChoicePanel,
       input,
-      actions
+      actions,
+      chatStatus
     );
     wrapper.append(
       tabRow,
       dictionaryView,
-      chatView,
-      status
+      chatView
     );
     body.append(wrapper);
 
     function showTab(name) {
       const dictionaryActive = name === "dictionary";
+      const previousTab = body._scholarBridgeActiveTab;
+      const drawer = body.parentElement;
+      if (dictionaryActive && previousTab !== "dictionary" && drawer && drawer.dataset.minimized !== "true") {
+        drawer.dataset.chatHeight = `${Math.round(drawer.getBoundingClientRect().height)}px`;
+      }
       body._scholarBridgeActiveTab = dictionaryActive ? "dictionary" : "chat";
       dictionaryView.hidden = !dictionaryActive;
       chatView.hidden = dictionaryActive;
-      dictionaryView.style.display = dictionaryActive ? "block" : "none";
+      dictionaryView.style.display = dictionaryActive ? "flex" : "none";
       chatView.style.display = dictionaryActive ? "none" : "flex";
       dictionaryTab.setAttribute("aria-selected", String(dictionaryActive));
       chatTab.setAttribute("aria-selected", String(!dictionaryActive));
@@ -2555,6 +2585,24 @@ var ObsidianScholarBridge = (() => {
       chatTab.style.boxShadow = dictionaryActive
         ? "none"
         : "0 0 0 1px color-mix(in srgb,var(--sb-accent,#2563a8) 25%,transparent),0 1px 3px #0001";
+      if (dictionaryActive) {
+        fitDictionaryWorkspace();
+      } else if (previousTab === "dictionary" && drawer?.dataset.chatHeight && drawer.dataset.minimized !== "true") {
+        drawer.style.height = drawer.dataset.chatHeight;
+      }
+    }
+
+    function fitDictionaryWorkspace() {
+      const drawer = body.parentElement;
+      const view = doc.defaultView;
+      if (!drawer || body._scholarBridgeActiveTab !== "dictionary" || drawer.dataset.minimized === "true") return;
+      view.requestAnimationFrame?.(() => {
+        if (!drawer.isConnected || body._scholarBridgeActiveTab !== "dictionary") return;
+        const headerHeight = drawer.firstElementChild?.getBoundingClientRect().height || 48;
+        const maximum = Math.max(300, view.innerHeight - Math.max(4, drawer.getBoundingClientRect().top) - 8);
+        const desired = Math.ceil(headerHeight + wrapper.scrollHeight + 12);
+        drawer.style.height = `${Math.min(maximum, Math.max(300, desired))}px`;
+      });
     }
     dictionaryTab.addEventListener("click", () => showTab("dictionary"));
     chatTab.addEventListener("click", () => showTab("chat"));
@@ -2567,7 +2615,7 @@ var ObsidianScholarBridge = (() => {
       input.value = [input.value.trim(), value].filter(Boolean).join("\n\n");
       input.focus();
       input.setSelectionRange?.(input.value.length, input.value.length);
-      status.textContent = "选中内容已加入提问框，可继续补充你的问题。";
+      chatStatus.textContent = "论文问答：已把 PDF 选中内容加入提问框；请补充问题后点击“提交问题”。";
     };
 
     async function currentAttachment() {
@@ -2617,10 +2665,10 @@ var ObsidianScholarBridge = (() => {
         Components.classes["@mozilla.org/widget/clipboardhelper;1"]
           .getService(Components.interfaces.nsIClipboardHelper)
           .copyString(selected);
-        status.textContent = "选中内容已复制到剪贴板。";
+        chatStatus.textContent = "论文问答：选中内容已复制到剪贴板。";
       } catch (error) {
         Zotero.logError(error);
-        status.textContent = `复制失败：${error.message}`;
+        chatStatus.textContent = `论文问答复制失败：${error.message}`;
       }
     }
 
@@ -2735,6 +2783,12 @@ var ObsidianScholarBridge = (() => {
         sessionStatus.textContent = activeSession.publishedAt
           ? `当前会话已发布；后续提问会自动保存草稿，点击“保存会话”将更新原文件。最近更新：${formatSessionTime(activeSession.updatedAt)}`
           : `当前会话会在每轮问答后自动保存为隐藏草稿。最近更新：${formatSessionTime(activeSession.updatedAt)}`;
+        saveButton.textContent = activeSession.publishedAt
+          ? "更新当前会话到 Obsidian"
+          : "保存会话到 Obsidian";
+        clearButton.textContent = activeSession.publishedAt
+          ? "开始空白新会话"
+          : "清空未发布草稿";
       }
     }
 
@@ -2743,8 +2797,11 @@ var ObsidianScholarBridge = (() => {
       const report = await inspectPaperMemory(attachment);
       modelChoicePanel.style.display = "none";
       memoryStatus.style.color = "inherit";
+      memoryStatus.style.borderColor = "var(--fill-quinary,#ccc)";
+      memoryStatus.style.background = "var(--fill-quinary,#eee)";
       if (report.state === "missing") {
-        memoryStatus.textContent = "全文记忆：尚未构建。快速模式可直接提问；深度模式首次提问时会自动构建。";
+        memoryStatus.textContent = "○ 全文记忆尚未构建 · 快速模式可直接提问；深度模式首次提问会自动构建。";
+        memoryButton.textContent = "首次构建全文记忆（消耗 Token）";
         return report;
       }
       const memoryModel = report.metadata.memory_model
@@ -2752,15 +2809,19 @@ var ObsidianScholarBridge = (() => {
         || "旧版未记录";
       const generated = report.metadata.generated || "时间未知";
       if (report.state === "changed") {
-        memoryStatus.textContent = `全文记忆：检测到 PDF 正文已变化。下次深度提问会自动更新，也可以现在手动更新。原模型：${memoryModel}`;
+        memoryStatus.textContent = `⚠ PDF 正文已变化 · 旧全文记忆由 ${memoryModel} 生成。下次深度提问会自动更新，也可以现在更新。`;
         memoryStatus.style.color = "#b42318";
-        memoryButton.textContent = "PDF 已变化，更新全文记忆";
+        memoryStatus.style.borderColor = "#d97706";
+        memoryStatus.style.background = "#fff8df";
+        memoryButton.textContent = "更新全文记忆（PDF 已变化）";
       } else if (report.state === "legacy") {
-        memoryStatus.textContent = `全文记忆：旧版记忆可继续使用，但没有 PDF 指纹。建议方便时更新一次。生成模型：${memoryModel}`;
-        memoryButton.textContent = "升级/更新全文记忆";
+        memoryStatus.textContent = `△ 旧版全文记忆可继续使用 · 模型：${memoryModel} · 未记录 PDF 指纹，建议更新一次。`;
+        memoryButton.textContent = "升级旧版全文记忆（消耗 Token）";
       } else {
-        memoryStatus.textContent = `全文记忆：可用 · ${memoryModel} · ${generated} · PDF 指纹一致`;
-        memoryButton.textContent = "构建/更新全文记忆";
+        memoryStatus.textContent = `✓ 全文记忆已构建 · 模型：${memoryModel} · 时间：${generated} · PDF 未变化。深度模式将直接复用，无需再次构建。`;
+        memoryStatus.style.borderColor = "#65a375";
+        memoryStatus.style.background = "color-mix(in srgb,var(--material-background,#fff) 90%,#58a66c 10%)";
+        memoryButton.textContent = "重新构建全文记忆（再次消耗 Token）";
       }
       const selectedModel = getProviderConfig(modelSelect.value).model;
       if (offerModelChoice && memoryModel !== "旧版未记录" && memoryModel !== selectedModel) {
@@ -2771,23 +2832,33 @@ var ObsidianScholarBridge = (() => {
     }
 
     async function rebuildMemory() {
-      memoryButton.disabled = true;
-      rebuildForModelButton.disabled = true;
       try {
         const attachment = await currentAttachment();
+        const report = await inspectPaperMemory(attachment);
+        if (report.state === "current" || report.state === "legacy") {
+          const confirmed = doc.defaultView.confirm?.(
+            "这篇论文已经有可用的全文记忆。重新构建会再次提交全文并消耗 Token，同时覆盖旧记忆。\n\n确定继续吗？"
+          );
+          if (!confirmed) {
+            chatStatus.textContent = "论文问答：已取消重新构建；现有全文记忆保持不变，没有调用模型。";
+            return;
+          }
+        }
+        memoryButton.disabled = true;
+        rebuildForModelButton.disabled = true;
         await buildPaperMemory(
           attachment,
-          (message) => { status.textContent = message; },
+          (message) => { chatStatus.textContent = `全文记忆：${message}`; },
           true,
           modelSelect.value
         );
-        status.textContent = `全文记忆已由 ${getProviderConfig(modelSelect.value).model} 构建并保存。`;
+        chatStatus.textContent = `全文记忆：已由 ${getProviderConfig(modelSelect.value).model} 重新阅读论文、构建并保存。`;
         modelChoicePanel.style.display = "none";
         await refreshMemoryStatus(attachment, false);
         showProgress("论文全文记忆", "构建完成");
       } catch (error) {
         Zotero.logError(error);
-        status.textContent = `全文记忆构建失败：${error.message}`;
+        chatStatus.textContent = `全文记忆构建失败：${error.message}`;
       } finally {
         memoryButton.disabled = false;
         rebuildForModelButton.disabled = false;
@@ -2804,12 +2875,12 @@ var ObsidianScholarBridge = (() => {
         renderConversation(session.entries);
         await refreshSessionUI(attachment);
         await refreshMemoryStatus(attachment, false);
-        status.textContent = session.entries.length
-          ? "已恢复上次阅读会话；可以直接继续提问。"
-          : "已准备新阅读会话。";
+        chatStatus.textContent = session.entries.length
+          ? "论文问答：已恢复上次阅读会话，可以继续提问。"
+          : "论文问答：已准备空白阅读会话。";
       } catch (error) {
         Zotero.logError(error);
-        status.textContent = `会话初始化失败：${error.message}`;
+        chatStatus.textContent = `论文问答初始化失败：${error.message}`;
       } finally {
         askButton.disabled = false;
         resumeButton.disabled = false;
@@ -2836,10 +2907,15 @@ var ObsidianScholarBridge = (() => {
         hint.textContent = "在 PDF 中选中单词或短语，点击“生成 AI 词典预览”。确认释义和原句后再保存到 Obsidian。";
         addStyle(hint, "font-size:.92em;opacity:.72;line-height:1.45");
         dictionaryContent.append(hint);
+        dictionaryStatus.textContent = "词典状态：尚未生成预览；未调用模型，也未修改 Obsidian。";
+        fitDictionaryWorkspace();
         return;
       }
       const entry = ScholarBridgeCore.normalizeSenseIDs(preview.entry);
       preview.entry = entry;
+      dictionaryStatus.textContent = preview.saved || preview.duplicate
+        ? `词典状态：已生成“${entry.lemma || entry.word}”并存在于 Obsidian；可以检查或恢复文件。`
+        : `词典状态：已使用快速模型生成“${entry.lemma || entry.word}”预览，尚未写入 Obsidian。`;
       const heading = createHTMLElement(doc, "div");
       heading.textContent = entry.lemma || entry.word || "词条";
       addStyle(heading, "font-size:1.25em;font-weight:750;margin:2px 0 5px");
@@ -2912,12 +2988,11 @@ var ObsidianScholarBridge = (() => {
       addStyle(sensesTitle, "font-weight:700;margin:8px 0 4px");
       dictionaryContent.append(sensesTitle);
       entry.senses.forEach((sense, index) => {
-        const senseBox = createHTMLElement(doc, "details");
-        if (index === 0) senseBox.open = true;
+        const senseBox = createHTMLElement(doc, "section");
         addStyle(senseBox, "border-top:1px solid var(--fill-quinary,#ddd);padding:5px 0");
-        const summary = createHTMLElement(doc, "summary");
+        const summary = createHTMLElement(doc, "div");
         summary.textContent = `义项 ${index + 1} · ${sense.chinese_definition || "释义待补充"}`;
-        addStyle(summary, "cursor:pointer;font-weight:600");
+        addStyle(summary, "font-weight:650;line-height:1.4");
         const senseBody = createHTMLElement(doc, "div");
         addStyle(senseBody, "padding:5px 4px 2px 14px");
         previewText(senseBody, "词性", sense.part_of_speech || "-");
@@ -2963,19 +3038,23 @@ var ObsidianScholarBridge = (() => {
               ? "该语境已存在"
               : "已保存到 Obsidian";
           commitButton.disabled = false;
-          status.textContent = `词条已保存：${preview.filePath}`;
+          dictionaryStatus.textContent = preview.restored
+            ? `词典状态：已把“${entry.lemma || entry.word}”恢复到 Obsidian。`
+            : `词典状态：已把“${entry.lemma || entry.word}”保存到 Obsidian。`;
           showProgress("AI 词典", `已保存：${entry.lemma || entry.word}`);
         } catch (error) {
           Zotero.logError(error);
           commitButton.disabled = false;
           commitButton.textContent = "保存失败，点击重试";
-          status.textContent = `词典保存失败：${error.message}`;
+          dictionaryStatus.textContent = `词典保存失败：${error.message}`;
         }
       });
       cancelButton.addEventListener("click", () => {
         vocabularyPreviews.delete(preview.attachmentID);
         renderDictionaryPreview(null);
+        dictionaryStatus.textContent = "词典状态：预览已关闭，没有修改 Obsidian。";
       });
+      fitDictionaryWorkspace();
     }
 
     const previewView = {
@@ -3009,7 +3088,7 @@ var ObsidianScholarBridge = (() => {
       if (!question) return;
       input.value = "";
       askButton.disabled = true;
-      status.textContent = "正在提取论文文本并生成回答…";
+      chatStatus.textContent = `论文问答：正在以“${modeSelect.options[modeSelect.selectedIndex]?.textContent || modeSelect.value}”模式调用 ${getProviderConfig(modelSelect.value).model}…`;
       appendMessage(doc, messages, "user", question);
       try {
         const attachment = await currentAttachment();
@@ -3026,7 +3105,7 @@ var ObsidianScholarBridge = (() => {
           question,
           modeSelect.value,
           modelSelect.value,
-          (message) => { status.textContent = message; }
+          (message) => { chatStatus.textContent = `论文问答：${message}`; }
         );
         renderScholarMarkdown(placeholder, result.answer);
         conversationFor(attachment.id).push({
@@ -3040,11 +3119,11 @@ var ObsidianScholarBridge = (() => {
         });
         await persistActivePaperSession(attachment);
         await refreshSessionUI(attachment);
-        status.textContent = `回答完成 · ${result.mode} · ${result.model}；已自动保存草稿，请按页码回到原文核对。`;
+        chatStatus.textContent = `论文问答完成 · 阅读模式：${result.mode} · 模型：${result.model} · 已自动保存隐藏草稿；请按页码回到原文核对。`;
       } catch (error) {
         Zotero.logError(error);
         appendMessage(doc, messages, "assistant", `错误：${error.message}`);
-        status.textContent = "提问失败。";
+        chatStatus.textContent = `论文问答失败：${error.message}`;
       } finally {
         askButton.disabled = false;
       }
@@ -3064,12 +3143,12 @@ var ObsidianScholarBridge = (() => {
         await refreshMemoryStatus(attachment, true);
       } catch (error) {
         Zotero.logError(error);
-        status.textContent = `模型已切换，但全文记忆状态检查失败：${error.message}`;
+        chatStatus.textContent = `论文模型已切换，但全文记忆状态检查失败：${error.message}`;
       }
     });
     answerOnlyButton.addEventListener("click", () => {
       modelChoicePanel.style.display = "none";
-      status.textContent = `后续回答改用 ${getProviderConfig(modelSelect.value).model}；现有全文记忆保持不变。`;
+      chatStatus.textContent = `论文问答：后续回答改用 ${getProviderConfig(modelSelect.value).model}；现有全文记忆保持不变，没有重新阅读全文。`;
     });
     rebuildForModelButton.addEventListener("click", rebuildMemory);
     memoryButton.addEventListener("click", rebuildMemory);
@@ -3081,10 +3160,10 @@ var ObsidianScholarBridge = (() => {
         const { session } = await resumePaperSession(attachment, sessionSelect.value);
         renderConversation(session.entries);
         await refreshSessionUI(attachment);
-        status.textContent = `已恢复会话：${session.title || "阅读会话"}`;
+        chatStatus.textContent = `论文问答：已恢复会话“${session.title || "阅读会话"}”。`;
       } catch (error) {
         Zotero.logError(error);
-        status.textContent = `恢复会话失败：${error.message}`;
+        chatStatus.textContent = `论文问答恢复会话失败：${error.message}`;
       } finally {
         resumeButton.disabled = false;
       }
@@ -3097,10 +3176,10 @@ var ObsidianScholarBridge = (() => {
         const { session } = await startNewPaperSession(attachment);
         renderConversation(session.entries);
         await refreshSessionUI(attachment);
-        status.textContent = "已开始新的阅读会话；上一会话已保留。";
+        chatStatus.textContent = "论文问答：已开始新的空白会话；上一会话已保留。";
       } catch (error) {
         Zotero.logError(error);
-        status.textContent = `新建会话失败：${error.message}`;
+        chatStatus.textContent = `论文问答新建会话失败：${error.message}`;
       } finally {
         newSessionButton.disabled = false;
       }
@@ -3110,12 +3189,12 @@ var ObsidianScholarBridge = (() => {
       try {
         const attachment = await currentAttachment();
         const filePath = await saveConversation(attachment);
-        status.textContent = `已保存：${filePath}`;
+        chatStatus.textContent = `论文问答：当前会话已保存或更新到 Obsidian。文件：${filePath}`;
         await refreshSessionUI(attachment);
         showProgress("AI 阅读会话", "已写入 Obsidian");
       } catch (error) {
         Zotero.logError(error);
-        status.textContent = `保存失败：${error.message}`;
+        chatStatus.textContent = `论文问答保存失败：${error.message}`;
       } finally {
         saveButton.disabled = false;
       }
@@ -3126,17 +3205,17 @@ var ObsidianScholarBridge = (() => {
         const { session } = await ensureActivePaperSession(attachment);
         if (session.publishedAt) {
           await startNewPaperSession(attachment);
-          status.textContent = "已发布的会话保持不变，并已开始空白新会话。";
+          chatStatus.textContent = "论文问答：已发布的 Obsidian 会话保持不变，并已开始空白新会话。";
         } else {
           conversations.set(attachment.id, []);
           await persistActivePaperSession(attachment);
-          status.textContent = "尚未发布的当前会话已清空。";
+          chatStatus.textContent = "论文问答：尚未发布的当前草稿已清空；全文记忆和已发布会话未受影响。";
         }
         renderConversation([]);
         await refreshSessionUI(attachment);
       } catch (error) {
         Zotero.logError(error);
-        status.textContent = `清空失败：${error.message}`;
+        chatStatus.textContent = `论文问答清空失败：${error.message}`;
       }
     });
     initializePaperWorkspace();

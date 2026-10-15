@@ -1,7 +1,7 @@
 $ErrorActionPreference = "Stop"
 $projectRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $distDir = Join-Path $projectRoot "dist"
-$outputPath = Join-Path $distDir "obsidian-scholar-bridge-0.8.0.xpi"
+$outputPath = Join-Path $distDir "obsidian-scholar-bridge-0.8.1.xpi"
 
 New-Item -ItemType Directory -Force -Path $distDir | Out-Null
 if (Test-Path -LiteralPath $outputPath) {

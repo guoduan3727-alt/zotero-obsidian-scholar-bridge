@@ -3,6 +3,16 @@
     "obsidian-scholar-bridge@local": {
       "updates": [
         {
+          "version": "0.8.1",
+          "update_link": "https://github.com/guoduan3727-alt/zotero-obsidian-scholar-bridge/releases/download/v0.8.1/obsidian-scholar-bridge-0.8.1.xpi",
+          "applications": {
+            "zotero": {
+              "strict_min_version": "9.0",
+              "strict_max_version": "10.*"
+            }
+          }
+        },
+        {
           "version": "0.8.0",
           "update_link": "https://github.com/guoduan3727-alt/zotero-obsidian-scholar-bridge/releases/download/v0.8.0/obsidian-scholar-bridge-0.8.0.xpi",
           "applications": {

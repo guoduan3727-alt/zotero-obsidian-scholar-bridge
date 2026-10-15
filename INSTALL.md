@@ -16,12 +16,12 @@ C:\ObsidianVault
 4. 选择：
 
    ```text
-   <下载或构建目录>\dist\obsidian-scholar-bridge-0.8.0.xpi
+   <下载或构建目录>\dist\obsidian-scholar-bridge-0.8.1.xpi
    ```
 
 5. 如果已经安装 0.1.0，允许使用相同插件 ID 覆盖升级。
 6. 完全退出并重新打开 Zotero。
-7. 在插件列表确认版本为 `Obsidian Scholar Bridge 0.8.0`。
+7. 在插件列表确认版本为 `Obsidian Scholar Bridge 0.8.1`。
 
 升级不会删除已经生成的 Markdown 文件。
 
@@ -235,7 +235,7 @@ Literature/<年份 - 论文短标题（稳定索引）>/
 
 ## 八、安装验收清单
 
-1. 插件列表显示版本 0.8.0。
+1. 插件列表显示版本 0.8.1。
 2. 设置页能测试快速和深度模型。
 3. PDF 顶部出现独立“论文 AI”按钮，点击后能展开完整工作台。
 4. PDF 选词弹窗出现“生成 AI 词典预览”，预览确认后生成 `Vocabulary/<lemma>.md`。
