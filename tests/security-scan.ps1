@@ -46,7 +46,7 @@ function Test-TextContent {
 }
 
 $findings = @()
-$projectPrefix = ([string](Resolve-Path -LiteralPath $projectRoot)).TrimEnd([System.IO.Path]::DirectorySeparatorChar) +
+$projectPrefix = ([string](Resolve-Path -LiteralPath $projectRoot).ProviderPath).TrimEnd([System.IO.Path]::DirectorySeparatorChar) +
   [System.IO.Path]::DirectorySeparatorChar
 $files = Get-ChildItem -LiteralPath $projectRoot -Recurse -File
 foreach ($file in $files) {

@@ -41,7 +41,10 @@ try {
       $false
     )
     try {
-      $archiveRoot = [string](Resolve-Path -LiteralPath $temporaryDir).Path
+      # Use ProviderPath explicitly. Casting PathInfo to string can include the
+      # PowerShell provider prefix on some GitHub runner versions, which then
+      # corrupts ZIP entry names when the prefix length is removed.
+      $archiveRoot = [string](Resolve-Path -LiteralPath $temporaryDir).ProviderPath
       $archivePrefix = $archiveRoot.TrimEnd([System.IO.Path]::DirectorySeparatorChar) +
         [System.IO.Path]::DirectorySeparatorChar
       Get-ChildItem -LiteralPath $temporaryDir -Recurse -File | ForEach-Object {
