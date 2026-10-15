@@ -2353,6 +2353,15 @@ var ObsidianScholarBridge = (() => {
       "line-height:1.4"
     ].join(";"));
     dictionaryStatus.textContent = "词典状态：尚未生成预览。";
+    const dictionaryActions = createHTMLElement(doc, "div");
+    addStyle(dictionaryActions, [
+      "display:none",
+      "align-items:center",
+      "gap:7px",
+      "flex-wrap:wrap",
+      "flex:0 0 auto",
+      "padding:0 2px"
+    ].join(";"));
 
     const chatTitle = createHTMLElement(doc, "div");
     chatTitle.textContent = "论文问答";
@@ -2536,7 +2545,7 @@ var ObsidianScholarBridge = (() => {
     chatStatus.textContent = "论文问答状态：正在初始化…";
 
     actions.append(askButton, memoryButton, saveButton, clearButton);
-    dictionaryView.append(dictionaryPanel, dictionaryStatus);
+    dictionaryView.append(dictionaryPanel, dictionaryActions, dictionaryStatus);
     chatView.append(
       chatHeadingRow,
       sessionPanel,
@@ -2902,6 +2911,8 @@ var ObsidianScholarBridge = (() => {
 
     function renderDictionaryPreview(preview) {
       dictionaryContent.replaceChildren();
+      dictionaryActions.replaceChildren();
+      dictionaryActions.style.display = "none";
       if (!preview) {
         const hint = createHTMLElement(doc, "div");
         hint.textContent = "在 PDF 中选中单词或短语，点击“生成 AI 词典预览”。确认释义和原句后再保存到 Obsidian。";
@@ -3009,8 +3020,6 @@ var ObsidianScholarBridge = (() => {
         dictionaryContent.append(senseBox);
       });
 
-      const previewActions = createHTMLElement(doc, "div");
-      addStyle(previewActions, "display:flex;gap:7px;flex-wrap:wrap;margin-top:8px");
       const commitButton = createButton(
         doc,
         preview.needsMigration
@@ -3021,8 +3030,8 @@ var ObsidianScholarBridge = (() => {
         Boolean(preview.needsMigration || (!preview.saved && !preview.duplicate))
       );
       const cancelButton = createButton(doc, "关闭预览");
-      previewActions.append(commitButton, cancelButton);
-      dictionaryContent.append(previewActions);
+      dictionaryActions.replaceChildren(commitButton, cancelButton);
+      dictionaryActions.style.display = "flex";
 
       commitButton.addEventListener("click", async () => {
         commitButton.disabled = true;

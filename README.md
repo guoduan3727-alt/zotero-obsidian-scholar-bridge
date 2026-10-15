@@ -1,4 +1,4 @@
-# Obsidian Scholar Bridge 0.8.1
+# Obsidian Scholar Bridge 0.8.2
 
 为 Zotero 9 和 Obsidian 1.12 设计的本地科研阅读桥接插件。
 
@@ -19,6 +19,12 @@ Zotero PDF
        → 回读原文和页码复核
        → Obsidian/Literature/<年份 - 论文短标题（稳定索引）>/
 ```
+
+## 0.8.2 词典操作按钮常驻
+
+- 词典正文继续在独立区域内滚动。
+- “确认保存/检查恢复到 Obsidian”和“关闭预览”移到正文滚动框之外并始终可见。
+- 无论词典释义、专业搭配和例句多长，都不需要滚动到内容末尾才能保存。
 
 ## 0.8.1 操作状态与词典预览优化
 
@@ -185,7 +191,7 @@ npm run build
 npm run validate
 ```
 
-构建产物：`dist/obsidian-scholar-bridge-0.8.1.xpi`。
+构建产物：`dist/obsidian-scholar-bridge-0.8.2.xpi`。
 
 ## 可靠性边界
 
