@@ -10,63 +10,68 @@ if (Test-Path -LiteralPath $outputPath) {
 
 Add-Type -AssemblyName System.IO.Compression
 Add-Type -AssemblyName System.IO.Compression.FileSystem
-$temporaryDir = Join-Path $env:TEMP ("obsidian-scholar-bridge-" + [guid]::NewGuid())
-New-Item -ItemType Directory -Path $temporaryDir | Out-Null
+$included = @(
+  "manifest.json",
+  "bootstrap.js",
+  "prefs.js",
+  "chrome",
+  "locale",
+  "LICENSE"
+)
 
-try {
-  $included = @(
-    "manifest.json",
-    "bootstrap.js",
-    "prefs.js",
-    "chrome",
-    "locale",
-    "LICENSE"
-  )
-  foreach ($name in $included) {
-    Copy-Item -LiteralPath (Join-Path $projectRoot $name) -Destination $temporaryDir -Recurse
+# Build only from the explicit allowlist above. Entry names are derived from
+# allowlist roots rather than absolute-path string subtraction, so Windows
+# PowerShell and PowerShell 7 produce the same XPI layout.
+$archiveFiles = @()
+foreach ($name in $included) {
+  $sourcePath = Join-Path $projectRoot $name
+  if (-not (Test-Path -LiteralPath $sourcePath)) {
+    throw "Required package source is missing: $name"
   }
-  # XPI/ZIP entry names must use forward slashes even when built on Windows.
-  # ZipFile.CreateFromDirectory() preserves Windows backslashes in this runtime,
-  # which makes Zotero unable to resolve manifest resources inside the archive.
-  $outputStream = [System.IO.File]::Open(
-    $outputPath,
-    [System.IO.FileMode]::CreateNew,
-    [System.IO.FileAccess]::Write,
-    [System.IO.FileShare]::None
+  $item = Get-Item -LiteralPath $sourcePath
+  if (-not $item.PSIsContainer) {
+    $archiveFiles += [pscustomobject]@{
+      Source = $item.FullName
+      Entry = $name.Replace("\", "/")
+    }
+    continue
+  }
+  $directoryRoot = $item.FullName.TrimEnd([char[]]"\/")
+  Get-ChildItem -LiteralPath $directoryRoot -Recurse -File | ForEach-Object {
+    $relativePath = $_.FullName.Substring($directoryRoot.Length).TrimStart([char[]]"\/")
+    $archiveFiles += [pscustomobject]@{
+      Source = $_.FullName
+      Entry = ($name.TrimEnd([char[]]"\/") + "/" + $relativePath.Replace("\", "/"))
+    }
+  }
+}
+
+$outputStream = [System.IO.File]::Open(
+  $outputPath,
+  [System.IO.FileMode]::CreateNew,
+  [System.IO.FileAccess]::Write,
+  [System.IO.FileShare]::None
+)
+try {
+  $archive = New-Object System.IO.Compression.ZipArchive(
+    $outputStream,
+    [System.IO.Compression.ZipArchiveMode]::Create,
+    $false
   )
   try {
-    $archive = New-Object System.IO.Compression.ZipArchive(
-      $outputStream,
-      [System.IO.Compression.ZipArchiveMode]::Create,
-      $false
-    )
-    try {
-      # Use ProviderPath explicitly. Casting PathInfo to string can include the
-      # PowerShell provider prefix on some GitHub runner versions, which then
-      # corrupts ZIP entry names when the prefix length is removed.
-      $archiveRoot = [string](Resolve-Path -LiteralPath $temporaryDir).ProviderPath
-      $archivePrefix = $archiveRoot.TrimEnd([System.IO.Path]::DirectorySeparatorChar) +
-        [System.IO.Path]::DirectorySeparatorChar
-      Get-ChildItem -LiteralPath $temporaryDir -Recurse -File | ForEach-Object {
-        $relativePath = $_.FullName.Substring($archivePrefix.Length).TrimStart([char[]]"\/")
-        $entryName = $relativePath.Replace("\", "/")
-        [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile(
-          $archive,
-          $_.FullName,
-          $entryName,
-          [System.IO.Compression.CompressionLevel]::Optimal
-        ) | Out-Null
-      }
-    } finally {
-      $archive.Dispose()
+    foreach ($archiveFile in $archiveFiles) {
+      [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile(
+        $archive,
+        $archiveFile.Source,
+        $archiveFile.Entry,
+        [System.IO.Compression.CompressionLevel]::Optimal
+      ) | Out-Null
     }
   } finally {
-    $outputStream.Dispose()
+    $archive.Dispose()
   }
 } finally {
-  if (Test-Path -LiteralPath $temporaryDir) {
-    Remove-Item -LiteralPath $temporaryDir -Recurse -Force
-  }
+  $outputStream.Dispose()
 }
 
 Write-Output $outputPath

@@ -40,7 +40,9 @@ try {
     "chrome/content/scripts/scholarBridge.js"
   )
   foreach ($name in $required) {
-    if ($names -notcontains $name) { throw "Missing XPI entry: $name" }
+    if ($names -notcontains $name) {
+      throw "Missing XPI entry: $name. Actual entries: $($names -join ', ')"
+    }
   }
   foreach ($icon in @("chrome/content/icons/icon-48.svg", "chrome/content/icons/icon-96.svg")) {
     if ($names -notcontains $icon) { throw "Manifest icon is missing from XPI: $icon" }
