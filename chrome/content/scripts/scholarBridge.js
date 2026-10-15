@@ -813,10 +813,16 @@ var ObsidianScholarBridge = (() => {
     const markdownExists = await IOUtils.exists(preview.filePath);
     const managedPath = vocabularyDataPath(preview.filePath);
     const managedExists = await IOUtils.exists(managedPath);
-    const recoveryNeeded = !markdownExists || !managedExists;
+    const wasKnownSaved = Boolean(preview.saved || preview.duplicate);
+    const wasMigration = Boolean(preview.needsMigration);
+    const recoveryNeeded = wasKnownSaved && (!markdownExists || !managedExists);
     preview.restored = false;
+    preview.lastCommitAction = "checking";
     if ((preview.duplicate && !preview.needsMigration) || preview.saved) {
-      if (markdownExists && managedExists) return preview;
+      if (markdownExists && managedExists) {
+        preview.lastCommitAction = "unchanged";
+        return preview;
+      }
       preview.saved = false;
       preview.needsMigration = true;
     }
@@ -828,6 +834,7 @@ var ObsidianScholarBridge = (() => {
           && managedDataHasOccurrence(latestData, preview.occurrence.occurrenceId)) {
         preview.duplicate = true;
         preview.saved = true;
+        preview.lastCommitAction = "unchanged";
         return preview;
       }
     }
@@ -871,6 +878,11 @@ var ObsidianScholarBridge = (() => {
     preview.saved = true;
     preview.needsMigration = false;
     preview.restored = recoveryNeeded;
+    preview.lastCommitAction = recoveryNeeded
+      ? "restored"
+      : wasMigration
+        ? "migrated"
+        : "saved";
     return preview;
   }
 
@@ -2352,7 +2364,13 @@ var ObsidianScholarBridge = (() => {
       "font-size:.88em",
       "line-height:1.4"
     ].join(";"));
-    dictionaryStatus.textContent = "词典状态：尚未生成预览。";
+    dictionaryStatus.setAttribute("role", "status");
+    dictionaryStatus.setAttribute("aria-live", "polite");
+    setDictionaryStatus(
+      "idle",
+      "正在初始化词典预览",
+      "尚未执行保存、恢复或格式更新操作。"
+    );
     const dictionaryActions = createHTMLElement(doc, "div");
     addStyle(dictionaryActions, [
       "display:none",
@@ -2909,6 +2927,33 @@ var ObsidianScholarBridge = (() => {
       parent.append(line);
     }
 
+    function setDictionaryStatus(kind, title, detail) {
+      const palette = {
+        idle: ["#64748b", "○"],
+        pending: ["#b45309", "!"],
+        working: ["#2563eb", "…"],
+        success: ["#15803d", "✓"],
+        error: ["#b91c1c", "×"]
+      }[kind] || ["#64748b", "○"];
+      dictionaryStatus.dataset.state = kind;
+      dictionaryStatus.style.borderColor = `color-mix(in srgb,${palette[0]} 42%,var(--fill-quinary,#ccc))`;
+      dictionaryStatus.style.background = `color-mix(in srgb,${palette[0]} 8%,var(--material-background,#fff))`;
+      dictionaryStatus.replaceChildren();
+      const header = createHTMLElement(doc, "div");
+      addStyle(header, "display:flex;align-items:center;gap:6px;font-weight:700");
+      const icon = createHTMLElement(doc, "span");
+      icon.textContent = palette[1];
+      icon.setAttribute("aria-hidden", "true");
+      addStyle(icon, `color:${palette[0]};font-weight:800;min-width:1em;text-align:center`);
+      const titleNode = createHTMLElement(doc, "span");
+      titleNode.textContent = title;
+      header.append(icon, titleNode);
+      const detailNode = createHTMLElement(doc, "div");
+      detailNode.textContent = detail;
+      addStyle(detailNode, "margin-top:2px;padding-left:1.45em;opacity:.82");
+      dictionaryStatus.append(header, detailNode);
+    }
+
     function renderDictionaryPreview(preview) {
       dictionaryContent.replaceChildren();
       dictionaryActions.replaceChildren();
@@ -2918,15 +2963,36 @@ var ObsidianScholarBridge = (() => {
         hint.textContent = "在 PDF 中选中单词或短语，点击“生成 AI 词典预览”。确认释义和原句后再保存到 Obsidian。";
         addStyle(hint, "font-size:.92em;opacity:.72;line-height:1.45");
         dictionaryContent.append(hint);
-        dictionaryStatus.textContent = "词典状态：尚未生成预览；未调用模型，也未修改 Obsidian。";
+        setDictionaryStatus(
+          "idle",
+          "等待生成词典预览",
+          "尚未调用模型，也没有向 Obsidian 写入任何内容。"
+        );
         fitDictionaryWorkspace();
         return;
       }
       const entry = ScholarBridgeCore.normalizeSenseIDs(preview.entry);
       preview.entry = entry;
-      dictionaryStatus.textContent = preview.saved || preview.duplicate
-        ? `词典状态：已生成“${entry.lemma || entry.word}”并存在于 Obsidian；可以检查或恢复文件。`
-        : `词典状态：已使用快速模型生成“${entry.lemma || entry.word}”预览，尚未写入 Obsidian。`;
+      const entryName = entry.lemma || entry.word;
+      if (preview.needsMigration) {
+        setDictionaryStatus(
+          "pending",
+          "等待更新词条格式",
+          `“${entryName}”已有旧版内容；点击“更新词条格式”后才会写入新版文件。`
+        );
+      } else if (preview.saved || preview.duplicate) {
+        setDictionaryStatus(
+          "success",
+          "词条和当前语境已存在",
+          `当前没有新增写入操作；可点击“检查文件并按需恢复”确认 Obsidian 文件是否完整。`
+        );
+      } else {
+        setDictionaryStatus(
+          "pending",
+          "预览已生成，等待确认保存",
+          `“${entryName}”尚未写入 Obsidian；请检查释义和论文原句后再保存。`
+        );
+      }
       const heading = createHTMLElement(doc, "div");
       heading.textContent = entry.lemma || entry.word || "词条";
       addStyle(heading, "font-size:1.25em;font-weight:750;margin:2px 0 5px");
@@ -3023,45 +3089,105 @@ var ObsidianScholarBridge = (() => {
       const commitButton = createButton(
         doc,
         preview.needsMigration
-          ? "更新为新版词条格式"
+          ? "更新词条格式"
           : preview.saved || preview.duplicate
-            ? "检查/恢复到 Obsidian"
-            : "确认保存到 Obsidian",
+            ? "检查文件并按需恢复"
+            : "保存词条到 Obsidian",
         Boolean(preview.needsMigration || (!preview.saved && !preview.duplicate))
       );
       const cancelButton = createButton(doc, "关闭预览");
+      commitButton.title = preview.needsMigration
+        ? "把旧版词条转换为当前可读格式并写回 Obsidian"
+        : preview.saved || preview.duplicate
+          ? "检查 Markdown 和隐藏数据文件；仅在文件缺失时恢复，不重复追加相同语境"
+          : "确认当前释义和论文语境后，将词条写入 Obsidian";
+      cancelButton.title = "关闭当前预览，不执行尚未完成的保存或更新操作";
       dictionaryActions.replaceChildren(commitButton, cancelButton);
       dictionaryActions.style.display = "flex";
 
       commitButton.addEventListener("click", async () => {
+        const requestedAction = preview.needsMigration
+          ? "migrate"
+          : preview.saved || preview.duplicate
+            ? "check"
+            : "save";
         commitButton.disabled = true;
-        commitButton.textContent = "正在保存…";
+        commitButton.textContent = requestedAction === "check"
+          ? "正在检查文件…"
+          : requestedAction === "migrate"
+            ? "正在更新格式…"
+            : "正在保存词条…";
+        setDictionaryStatus(
+          "working",
+          requestedAction === "check" ? "正在检查 Obsidian 文件" : "正在写入 Obsidian",
+          "操作尚未完成，请保持当前窗口开启。"
+        );
         try {
-          const wasMigration = Boolean(preview.needsMigration);
           await commitVocabulary(preview);
-          commitButton.textContent = preview.restored
-            ? "已恢复到 Obsidian"
-            : wasMigration
-            ? "词条格式已更新"
-            : preview.duplicate
-              ? "该语境已存在"
-              : "已保存到 Obsidian";
-          commitButton.disabled = false;
-          dictionaryStatus.textContent = preview.restored
-            ? `词典状态：已把“${entry.lemma || entry.word}”恢复到 Obsidian。`
-            : `词典状态：已把“${entry.lemma || entry.word}”保存到 Obsidian。`;
-          showProgress("AI 词典", `已保存：${entry.lemma || entry.word}`);
+          const result = {
+            restored: {
+              button: "✓ 恢复完成",
+              title: "恢复完成",
+              detail: `检测到文件缺失，已把“${entryName}”恢复到 Obsidian。`,
+              progress: `已恢复：${entryName}`
+            },
+            migrated: {
+              button: "✓ 格式更新完成",
+              title: "词条格式更新完成",
+              detail: `已保留原有内容，并把“${entryName}”写入当前词条格式。`,
+              progress: `格式已更新：${entryName}`
+            },
+            unchanged: {
+              button: "✓ 文件完整，无需恢复",
+              title: "检查完成，无需执行写入",
+              detail: `“${entryName}”的词条文件和当前语境均已存在，没有重复写入。`,
+              progress: `无需重复写入：${entryName}`
+            },
+            saved: {
+              button: "✓ 保存完成",
+              title: "保存完成",
+              detail: `已把“${entryName}”及当前论文语境写入 Obsidian。`,
+              progress: `已保存：${entryName}`
+            }
+          }[preview.lastCommitAction] || {
+            button: "✓ 操作完成",
+            title: "操作完成",
+            detail: `“${entryName}”已处理完成。`,
+            progress: `已处理：${entryName}`
+          };
+          commitButton.textContent = result.button;
+          commitButton.title = result.detail;
+          commitButton.disabled = true;
+          commitButton.style.opacity = "1";
+          commitButton.style.cursor = "default";
+          commitButton.style.color = "inherit";
+          commitButton.style.background = "color-mix(in srgb,#15803d 10%,var(--material-background,#fff))";
+          commitButton.style.borderColor = "color-mix(in srgb,#15803d 42%,var(--fill-quinary,#ccc))";
+          setDictionaryStatus("success", result.title, result.detail);
+          showProgress("AI 词典", result.progress);
         } catch (error) {
           Zotero.logError(error);
           commitButton.disabled = false;
-          commitButton.textContent = "保存失败，点击重试";
-          dictionaryStatus.textContent = `词典保存失败：${error.message}`;
+          commitButton.textContent = requestedAction === "check"
+            ? "重试检查并恢复"
+            : requestedAction === "migrate"
+              ? "重试更新词条格式"
+              : "重试保存词条";
+          setDictionaryStatus(
+            "error",
+            "操作失败，尚未完成",
+            `${error.message}；请检查 Vault 路径或文件权限后重试。`
+          );
         }
       });
       cancelButton.addEventListener("click", () => {
         vocabularyPreviews.delete(preview.attachmentID);
         renderDictionaryPreview(null);
-        dictionaryStatus.textContent = "词典状态：预览已关闭，没有修改 Obsidian。";
+        setDictionaryStatus(
+          "idle",
+          "预览已关闭",
+          "没有执行新的保存、恢复或格式更新操作。"
+        );
       });
       fitDictionaryWorkspace();
     }

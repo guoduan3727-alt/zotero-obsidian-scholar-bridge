@@ -1,4 +1,4 @@
-# Obsidian Scholar Bridge 0.8.2
+# Obsidian Scholar Bridge 0.8.3
 
 为 Zotero 9 和 Obsidian 1.12 设计的本地科研阅读桥接插件。
 
@@ -19,6 +19,13 @@ Zotero PDF
        → 回读原文和页码复核
        → Obsidian/Literature/<年份 - 论文短标题（稳定索引）>/
 ```
+
+## 0.8.3 词典操作状态澄清
+
+- 保存、检查恢复、格式更新和关闭预览使用不同且明确的按钮文案。
+- 状态卡区分等待确认、正在执行、保存完成、恢复完成、无需执行和失败。
+- 首次创建词条不再误报为“恢复”；文件本来完整时明确显示“无需执行写入”。
+- 成功完成后的按钮改为不可重复点击的完成状态，避免误以为仍需再次操作。
 
 ## 0.8.2 词典操作按钮常驻
 
@@ -191,7 +198,7 @@ npm run build
 npm run validate
 ```
 
-构建产物：`dist/obsidian-scholar-bridge-0.8.2.xpi`。
+构建产物：`dist/obsidian-scholar-bridge-0.8.3.xpi`。
 
 ## 可靠性边界
 

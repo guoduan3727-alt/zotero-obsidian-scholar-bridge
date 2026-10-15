@@ -1,6 +1,6 @@
 $ErrorActionPreference = "Stop"
 $projectRoot = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
-$xpiPath = Join-Path $projectRoot "dist\obsidian-scholar-bridge-0.8.2.xpi"
+$xpiPath = Join-Path $projectRoot "dist\obsidian-scholar-bridge-0.8.3.xpi"
 
 if (-not (Test-Path -LiteralPath $xpiPath)) {
   throw "XPI not found: $xpiPath"
@@ -8,7 +8,7 @@ if (-not (Test-Path -LiteralPath $xpiPath)) {
 
 [xml](Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $projectRoot "chrome\content\preferences.xhtml")) | Out-Null
 $manifest = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $projectRoot "manifest.json") | ConvertFrom-Json
-if ($manifest.version -ne "0.8.2") { throw "Unexpected manifest version" }
+if ($manifest.version -ne "0.8.3") { throw "Unexpected manifest version" }
 if (-not $manifest.applications.zotero.update_url) {
   throw "Zotero 9 requires applications.zotero.update_url"
 }
@@ -207,7 +207,12 @@ foreach ($interactionMarker in @(
   'applyWorkspaceTheme',
   'themeSelect',
   'dictionaryStatus',
+  'setDictionaryStatus',
   'dictionaryActions.replaceChildren(commitButton, cancelButton)',
+  'preview.lastCommitAction',
+  'const recoveryNeeded = wasKnownSaved &&',
+  'requestedAction === "check"',
+  'dictionaryStatus.dataset.state',
   'chatStatus',
   'fitDictionaryWorkspace',
   'doc.defaultView.confirm'
